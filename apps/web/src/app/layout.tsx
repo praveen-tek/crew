@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Outfit, EB_Garamond } from "next/font/google";
+import { EB_Garamond, Geist, Geist_Mono, Outfit, Inter } from "next/font/google";
 import "../styles/globals.css";
 import { cn } from "@/lib/utils";
 
-const ebGaramondHeading = EB_Garamond({subsets:['latin'],variable:'--font-heading'});
+const interHeading = Inter({subsets:['latin'],variable:'--font-heading'});
 
-const outfit = Outfit({subsets:['latin'],variable:'--font-sans'});
+const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -26,7 +26,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 	return (
 		<html
 			lang="en"
-			className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", outfit.variable, ebGaramondHeading.variable)}
+			className={cn(
+				"h-full",
+				"antialiased",
+				geistSans.variable,
+				geistMono.variable,
+				"font-sans",
+				inter.variable,
+				interHeading.variable,
+			)}
 		>
 			<body className="min-h-full flex flex-col">{children}</body>
 		</html>
