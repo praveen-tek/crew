@@ -32,7 +32,7 @@ A single input where a student describes their interests in free text. The syste
 ## Get Started
 
 **Using Crew?**
-→ Open the app and describe what you're into.
+→ Sign in with Google and describe what you're into.
 
 **Want to run it locally?**
 → See [Installation](#installation) below.
@@ -49,17 +49,29 @@ A single input where a student describes their interests in free text. The syste
 ## Tech Stack
 
 - **Frontend:** Next.js 16, React 19, Tailwind CSS 4
-- **Backend:** Next.js API routes
-- **Database:** JSON / SQLite (seeded Aatmoday groups & events)
-- **AI Model/API:** [Gemini API / OpenAI API / Claude — fill in]
+- **Backend:** Next.js route handlers + server actions, `proxy.ts` for auth-gated routing
+- **Auth:** Better Auth (Google OAuth only)
+- **Database:** PostgreSQL on Neon
+- **ORM:** Drizzle ORM + drizzle-kit
+- **AI Model/API:** Gemini API
 - **Monorepo:** Turborepo + pnpm workspaces
 
 ## How It Works
 
-1. User enters a free-text description of their interests.
-2. The backend sends the interest and the full groups/events list to the AI model.
-3. The model returns the top 3 matches, a one-line reason for each, and a personalized icebreaker.
-4. Results render as cards in the UI.
+1. User signs in with Google and enters a free-text description of their interests.
+2. The backend sends the interest and the full groups/events list to Gemini.
+3. Gemini returns the top matches, a short reason for each, and a personalized icebreaker.
+4. Results are stored in Postgres and render as cards in the UI.
+
+## Subprocessors
+
+Crew relies on the following third-party services to operate:
+
+| Subprocessor | Purpose |
+|---|---|
+| Google (Gemini API) | AI-based interest matching, reasoning, and icebreaker generation |
+| Google (OAuth) | Authentication via Better Auth (name, email, avatar) |
+| Neon | Managed PostgreSQL hosting for all application data |
 
 ## Installation
 
@@ -69,8 +81,14 @@ cd crew
 pnpm install
 ```
 
-Add your API key to `apps/web/.env`:
+Add your environment variables to `apps/web/.env`:
 
+
+Push the schema to your Neon database:
+
+```bash
+pnpm --filter web drizzle-kit push
+```
 
 ## Running the Project
 

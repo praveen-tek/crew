@@ -9,7 +9,8 @@ import {
   aatmodayEvent,
 } from "@/db/schema";
 import {
-  checkRateLimit,
+  checkDailyRateLimit,
+  DAILY_MATCH_LIMIT,
   validateAndSanitizeInterestText,
   generateMatches,
 } from "@/lib/matching";
@@ -20,6 +21,30 @@ export interface ActionResult<T> {
   success: boolean;
   data?: T;
   error?: string;
+}
+
+/**
+ * Server action to get remaining AI matches today
+ */
+export async function getDailyQuota(): Promise<ActionResult<{ remaining: number; limit: number; resetHours?: number }>> {
+  try {
+    const session = await getAuthenticatedSession();
+    if (!session || !session.user) {
+      return { success: false, error: "Unauthorized" };
+    }
+
+    const rateLimit = await checkDailyRateLimit(session.user.id);
+    return {
+      success: true,
+      data: {
+        remaining: rateLimit.remaining,
+        limit: DAILY_MATCH_LIMIT,
+        resetHours: rateLimit.resetHours,
+      },
+    };
+  } catch (err: unknown) {
+    return { success: false, error: "Failed to check daily quota." };
+  }
 }
 
 /**
@@ -34,12 +59,12 @@ export async function submitInterestMatch(interestText: string): Promise<ActionR
 
     const userId = session.user.id;
 
-    // Rate limiting check
-    const rateLimit = checkRateLimit(userId);
+    // Daily rate limit check (5 per day)
+    const rateLimit = await checkDailyRateLimit(userId);
     if (!rateLimit.allowed) {
       return {
         success: false,
-        error: `Rate limit reached. Please wait ${rateLimit.retryAfterSeconds || 30} seconds before submitting again.`,
+        error: `Daily AI limit reached (5 matches per day). Your quota will reset in ${rateLimit.resetHours || 24} hours.`,
       };
     }
 

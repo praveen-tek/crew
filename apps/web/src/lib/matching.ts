@@ -29,25 +29,54 @@ export interface MatchRecommendation {
   rank: number;
 }
 
-// In-memory sliding window rate limiter: max 5 requests per 60s per user
-const rateLimitMap = new Map<string, number[]>();
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const MAX_REQUESTS_PER_WINDOW = 6;
+import { and, gte } from "drizzle-orm";
+import { matchRequest } from "@/db/schema";
 
-export function checkRateLimit(userId: string): { allowed: boolean; retryAfterSeconds?: number } {
-  const now = Date.now();
-  const timestamps = rateLimitMap.get(userId) || [];
-  const validTimestamps = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+export const DAILY_MATCH_LIMIT = 5;
 
-  if (validTimestamps.length >= MAX_REQUESTS_PER_WINDOW) {
-    const oldest = validTimestamps[0];
-    const retryAfterSeconds = Math.ceil((RATE_LIMIT_WINDOW_MS - (now - oldest)) / 1000);
-    return { allowed: false, retryAfterSeconds };
+/**
+ * Checks if the user has reached their daily limit of 5 AI match requests per day
+ */
+export async function checkDailyRateLimit(userId: string): Promise<{
+  allowed: boolean;
+  remaining: number;
+  resetHours?: number;
+}> {
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const past24hRequests = await db
+    .select({
+      id: matchRequest.id,
+      createdAt: matchRequest.createdAt,
+    })
+    .from(matchRequest)
+    .where(
+      and(
+        eq(matchRequest.userId, userId),
+        gte(matchRequest.createdAt, oneDayAgo)
+      )
+    )
+    .orderBy(matchRequest.createdAt);
+
+  const count = past24hRequests.length;
+  const remaining = Math.max(0, DAILY_MATCH_LIMIT - count);
+
+  if (count >= DAILY_MATCH_LIMIT) {
+    const oldest = past24hRequests[0].createdAt;
+    const resetTime = new Date(oldest.getTime() + 24 * 60 * 60 * 1000);
+    const msUntilReset = Math.max(0, resetTime.getTime() - Date.now());
+    const resetHours = Math.ceil(msUntilReset / (1000 * 60 * 60));
+    return {
+      allowed: false,
+      remaining: 0,
+      resetHours: Math.max(1, resetHours),
+    };
   }
 
-  validTimestamps.push(now);
-  rateLimitMap.set(userId, validTimestamps);
-  return { allowed: true };
+  return {
+    allowed: true,
+    remaining,
+  };
 }
 
 export function validateAndSanitizeInterestText(input: unknown): string {
