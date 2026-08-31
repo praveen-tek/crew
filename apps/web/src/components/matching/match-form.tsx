@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { submitInterestMatch } from "@/app/actions/match";
+import { submitInterestMatch, getDailyQuota } from "@/app/actions/match";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -18,6 +18,7 @@ import {
   Compass,
   Lightning,
   CheckCircle,
+  HourglassHigh,
 } from "@phosphor-icons/react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -68,6 +69,15 @@ export function MatchForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [quota, setQuota] = useState<{ remaining: number; limit: number; resetHours?: number } | null>(null);
+
+  useEffect(() => {
+    getDailyQuota().then((res) => {
+      if (res.success && res.data) {
+        setQuota(res.data);
+      }
+    });
+  }, []);
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -91,6 +101,10 @@ export function MatchForm() {
       } else {
         setError(res.error || "Failed to find matches. Please try again.");
         setIsSubmitting(false);
+        // Refresh quota on error/limit hit
+        getDailyQuota().then((qRes) => {
+          if (qRes.success && qRes.data) setQuota(qRes.data);
+        });
       }
     } catch (err: unknown) {
       clearInterval(interval);
@@ -102,6 +116,8 @@ export function MatchForm() {
   const handleSelectSample = (sample: string) => {
     setInterestText(sample);
   };
+
+  const isQuotaExhausted = quota !== null && quota.remaining <= 0;
 
   return (
     <div className="w-full max-w-3xl">
@@ -165,18 +181,43 @@ export function MatchForm() {
             exit={{ opacity: 0, y: -12 }}
             className="rounded-3xl border border-border/80 bg-card/95 p-6 shadow-xl backdrop-blur-md sm:p-10"
           >
-            <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
-                <Compass weight="duotone" className="h-6 w-6" />
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400">
+                  <Compass weight="duotone" className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                    Describe Your Interests
+                  </h2>
+                  <p className="text-xs text-muted-foreground sm:text-sm">
+                    Write freely — hobbies, specific tech stacks, creative passions, or vibes.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-                  Describe Your Interests
-                </h2>
-                <p className="text-xs text-muted-foreground sm:text-sm">
-                  Write freely — hobbies, specific tech stacks, creative passions, vibes, or projects you want to build.
-                </p>
-              </div>
+
+              {/* Daily Quota Badge */}
+              {quota && (
+                <div
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${
+                    quota.remaining > 0
+                      ? "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300"
+                      : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300"
+                  }`}
+                >
+                  {quota.remaining > 0 ? (
+                    <>
+                      <Sparkle weight="fill" className="h-3.5 w-3.5 text-blue-500" />
+                      <span>{quota.remaining} of {quota.limit} AI matches remaining today</span>
+                    </>
+                  ) : (
+                    <>
+                      <HourglassHigh weight="bold" className="h-3.5 w-3.5 text-amber-500" />
+                      <span>Daily limit reached (resets in ~{quota.resetHours || 24}h)</span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             {error && (
@@ -190,12 +231,13 @@ export function MatchForm() {
                 <Textarea
                   value={interestText}
                   onChange={(e) => setInterestText(e.target.value)}
+                  disabled={isQuotaExhausted}
                   placeholder="e.g. I want to build autonomous robots and edge AI on single-board computers, and I also enjoy late-night acoustic guitar jamming and weekend bouldering..."
-                  className="min-h-[160px] resize-y rounded-2xl border-2 border-border/70 p-4 text-base shadow-inner focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10"
+                  className="min-h-[160px] resize-y rounded-2xl border-2 border-border/70 p-4 text-base shadow-inner focus:border-blue-600 focus:ring-4 focus:ring-blue-500/10 disabled:opacity-60"
                   maxLength={2000}
                 />
                 <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Minimum 5 characters. Be as specific as you like!</span>
+                  <span>Minimum 5 characters. Max 5 matches per day.</span>
                   <span className={interestText.length > 1800 ? "text-amber-500" : ""}>
                     {interestText.length}/2000
                   </span>
@@ -216,7 +258,8 @@ export function MatchForm() {
                         key={sample.label}
                         type="button"
                         onClick={() => handleSelectSample(sample.text)}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-secondary/50 px-3.5 py-1.5 text-xs font-medium text-foreground transition-all hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/60 dark:hover:text-blue-300"
+                        disabled={isQuotaExhausted}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-secondary/50 px-3.5 py-1.5 text-xs font-medium text-foreground transition-all hover:border-blue-500 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 dark:hover:bg-blue-950/60 dark:hover:text-blue-300"
                       >
                         <Icon weight="bold" className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                         <span>{sample.label}</span>
@@ -230,11 +273,11 @@ export function MatchForm() {
               <Button
                 type="submit"
                 size="xl"
-                disabled={interestText.trim().length < 5 || isSubmitting}
+                disabled={interestText.trim().length < 5 || isSubmitting || isQuotaExhausted}
                 className="w-full justify-center gap-2 rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/25 hover:bg-blue-700"
               >
                 <Lightning weight="fill" className="h-5 w-5" />
-                <span>Find My Matches & Icebreakers</span>
+                <span>{isQuotaExhausted ? "Daily AI Limit Reached" : "Find My Matches & Icebreakers"}</span>
                 <ArrowRight weight="bold" className="h-5 w-5" />
               </Button>
             </form>
