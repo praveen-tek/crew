@@ -3,7 +3,16 @@
 	"tasks": {
 		"build": {
 			"dependsOn": ["^build"],
-			"outputs": [".next/**", "!.next/cache/**", "!.next/dev/**"]
+			"outputs": [".next/**", "!.next/cache/**", "!.next/dev/**"],
+			"env": [
+				"DATABASE_URL",
+				"BETTER_AUTH_SECRET",
+				"BETTER_AUTH_URL",
+				"GOOGLE_CLIENT_ID",
+				"GOOGLE_CLIENT_SECRET",
+				"GEMINI_API_KEY",
+				"OPENAI_API_KEY"
+			]
 		},
 		"check-types": {
 			"dependsOn": ["^check-types"]
