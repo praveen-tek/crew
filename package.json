@@ -13,5 +13,8 @@
 		"husky": "^9.1.7",
 		"turbo": "^2.10.12"
 	},
-	"packageManager": "pnpm@11.10.0"
+	"packageManager": "pnpm@11.10.0",
+	"dependencies": {
+		"better-auth": "^1.7.2"
+	}
 }
