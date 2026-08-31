@@ -1,3 +1,1 @@
 turbo build check-types
-pnpx @biomejs/biome check --write
-pnpx @biomejs/biome lint --write

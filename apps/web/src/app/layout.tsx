@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { EB_Garamond, Geist, Geist_Mono, Outfit, Inter } from "next/font/google";
+import { Geist, Geist_Mono, Inter } from "next/font/google";
+import "../styles/globals.css";
 import "../styles/globals.css";
 import { cn } from "@/lib/utils";
 
-const interHeading = Inter({subsets:['latin'],variable:'--font-heading'});
+const interHeading = Inter({ subsets: ["latin"], variable: "--font-heading" });
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
